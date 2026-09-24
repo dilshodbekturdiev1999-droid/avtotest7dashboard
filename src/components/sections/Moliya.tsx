@@ -234,7 +234,7 @@ function formatSummaInput(val: string): string {
 type Period = "kun" | "hafta" | "oy" | "barchasi";
 interface Row { sana: string; ism: string; filial: string; onlineOfline: string; turi: string; summa: number; kirimChiqim: string; izoh: string; chiqimTuri: string; }
 interface RejadagiRow { nomi: string; sana: string; summa: number; status: string; izoh: string; }
-interface Payment { id: string; phone: string; tariff: string; amount: number; status: string; first_name: string | null; last_name: string | null; created_at: string; }
+interface Payment { id: string; phone: string; tariff: string; amount: number; status: string; first_name: string | null; last_name: string | null; created_at: string; updated_at: string; }
 interface PravaOnExpense { id: string; summa: number; filial: string | null; izoh: string | null; created_at: string; }
 const EKVAYRING_START = new Date(2026, 6, 24); // 24 iyul 2026 — ekvayring boshlangan sana
 function isOnlineRow(r: Row): boolean {
@@ -398,7 +398,7 @@ export function Moliya() {
 
   const fetchPayments = () => {
     setPaymentsLoading(true);
-    fetch(`${SUPABASE_URL}/rest/v1/payments?status=eq.success&order=created_at.desc`, {
+    fetch(`${SUPABASE_URL}/rest/v1/payments?status=eq.success&order=updated_at.desc`, {
       headers: { "apikey": SUPABASE_KEY, "Authorization": `Bearer ${SUPABASE_KEY}` },
     })
     .then(function(r) { return r.json(); })
@@ -1062,7 +1062,7 @@ export function Moliya() {
                     const fromD = poFilterFrom ? new Date(poFilterFrom) : null;
                     const toD   = poFilterTo   ? new Date(poFilterTo + "T23:59:59") : null;
                     const filtered = payments.filter(function(p) {
-                      const d = toTashkent(p.created_at);
+                      const d = toTashkent(p.updated_at);
                       if (poFilterTariff !== "Barchasi" && p.tariff !== poFilterTariff) return false;
                       if (fromD && d < fromD) return false;
                       if (toD   && d > toD)   return false;
@@ -1089,7 +1089,7 @@ export function Moliya() {
                             {filtered.length === 0 ? (
                               <tr><td colSpan={5} className="px-4 py-10 text-center text-muted-foreground">To'lovlar topilmadi</td></tr>
                             ) : filtered.map(function(p, i) {
-                              const d = toTashkent(p.created_at);
+                              const d = toTashkent(p.updated_at);
                               const dateStr = d.getUTCDate().toString().padStart(2,"0") + "." + (d.getUTCMonth()+1).toString().padStart(2,"0") + "." + d.getUTCFullYear() + " " + d.getUTCHours().toString().padStart(2,"0") + ":" + d.getUTCMinutes().toString().padStart(2,"0");
                               const name = (p.first_name || p.last_name) ? ((p.first_name || "") + " " + (p.last_name || "")).trim() : "—";
                               return (
