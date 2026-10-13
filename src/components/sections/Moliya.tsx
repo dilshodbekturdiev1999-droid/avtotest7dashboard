@@ -236,6 +236,8 @@ interface Row { sana: string; ism: string; filial: string; onlineOfline: string;
 interface RejadagiRow { nomi: string; sana: string; summa: number; status: string; izoh: string; }
 interface Payment { id: string; phone: string; tariff: string; amount: number; status: string; first_name: string | null; last_name: string | null; created_at: string; updated_at: string; }
 interface PravaOnExpense { id: string; summa: number; filial: string | null; izoh: string | null; created_at: string; }
+interface TerminalExpense { id: string; summa: number; filial: string | null; izoh: string | null; created_at: string; }
+interface TermChiqimItem { key: string; sana: string; dateKey: number; filial: string; izoh: string; summa: number; fromSheet: boolean; }
 const EKVAYRING_START = new Date(2026, 6, 24); // 24 iyul 2026 — ekvayring boshlangan sana
 function isOnlineRow(r: Row): boolean {
   if (r.onlineOfline !== "Online") return false;
@@ -248,6 +250,16 @@ function isTerminalRow(r: Row): boolean {
   return r.turi.trim().toLowerCase() === "terminal";
 }
 function toTashkent(iso: string): Date { return new Date(new Date(iso).getTime() + 5 * 3600000); }
+function sheetDateKey(sana: string): number {
+  const p = sana.split(".");
+  if (p.length < 3) return 0;
+  return parseInt(p[2]) * 10000 + parseInt(p[1]) * 100 + parseInt(p[0]);
+}
+function inputDateKey(input: string): number {
+  const p = input.split("-");
+  if (p.length < 3) return 0;
+  return parseInt(p[0]) * 10000 + parseInt(p[1]) * 100 + parseInt(p[2]);
+}
 
 function Toggle({ left, right, value, onChange, leftColor, rightColor }: {
   left: string; right: string; value: string; onChange: (v: string) => void; leftColor?: string; rightColor?: string;
@@ -327,6 +339,19 @@ export function Moliya() {
   const [onlineResult, setOnlineResult] = useState<string | null>(null);
   const [modalFilial, setModalFilial] = useState<"Novza" | "Yunusobod" | "Tinclik" | null>(null);
   const [modalTerminal, setModalTerminal] = useState(false);
+  const [termExpenseList, setTermExpenseList] = useState<TerminalExpense[]>([]);
+  const [termExpLoading, setTermExpLoading] = useState(false);
+  const [terminalTab, setTerminalTab] = useState<"kirim" | "chiqim">("kirim");
+  const [showTermExpForm, setShowTermExpForm] = useState(false);
+  const [termExpSumma, setTermExpSumma] = useState("");
+  const [termExpFilial, setTermExpFilial] = useState("Novza");
+  const [termExpIzoh, setTermExpIzoh] = useState("");
+  const [termExpSana, setTermExpSana] = useState(todayInputFormat());
+  const [termExpSaving, setTermExpSaving] = useState(false);
+  const [termExpResult, setTermExpResult] = useState<string | null>(null);
+  const [termExpFilterFrom, setTermExpFilterFrom] = useState("");
+  const [termExpFilterTo, setTermExpFilterTo] = useState("");
+  const [showTermExpFilter, setShowTermExpFilter] = useState(false);
   const [filterKirim, setFilterKirim] = useState("Barchasi");
   const [filterFilial, setFilterFilial] = useState("Barchasi");
   const [filterFrom, setFilterFrom] = useState("");
@@ -437,7 +462,37 @@ export function Moliya() {
     finally { setExpSaving(false); }
   }
 
-  useEffect(function() { fetchData(); fetchRejadagi(); fetchPayments(); fetchPravaOnExpenses(); }, []);
+  const fetchTerminalExpenses = () => {
+    setTermExpLoading(true);
+    fetch(`${SUPABASE_URL}/rest/v1/terminal_expenses?order=created_at.desc`, {
+      headers: { "apikey": SUPABASE_KEY, "Authorization": `Bearer ${SUPABASE_KEY}` },
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(data) { setTermExpenseList(Array.isArray(data) ? data : []); })
+    .catch(function() {})
+    .finally(function() { setTermExpLoading(false); });
+  };
+
+  async function submitTerminalExpense() {
+    const summaNum = parseInt(termExpSumma.replace(/\s/g, ""));
+    if (!summaNum || isNaN(summaNum)) { setTermExpResult("Summani kiriting"); return; }
+    setTermExpSaving(true); setTermExpResult(null);
+    try {
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/terminal_expenses`, {
+        method: "POST",
+        headers: { "apikey": SUPABASE_KEY, "Authorization": `Bearer ${SUPABASE_KEY}`, "Content-Type": "application/json", "Prefer": "return=representation" },
+        body: JSON.stringify({ summa: summaNum, filial: termExpFilial, izoh: termExpIzoh || null, created_at: termExpSana }),
+      });
+      if (!res.ok) throw new Error();
+      setTermExpResult("Saqlandi!");
+      setTermExpSumma(""); setTermExpIzoh(""); setTermExpSana(todayInputFormat());
+      fetchTerminalExpenses();
+      setTimeout(function() { setShowTermExpForm(false); setTermExpResult(null); }, 1200);
+    } catch { setTermExpResult("Xatolik yuz berdi"); }
+    finally { setTermExpSaving(false); }
+  }
+
+  useEffect(function() { fetchData(); fetchRejadagi(); fetchPayments(); fetchPravaOnExpenses(); fetchTerminalExpenses(); }, []);
 
   async function submitForm() {
     if (!formIsm || !formSumma) { setFormResult("Ism va summani kiriting"); return; }
@@ -514,9 +569,25 @@ export function Moliya() {
 
   const offlineRows = periodFiltered.filter(function(r) { return !isOnlineRow(r) && !isTerminalRow(r); });
 
-  const terminalRows     = periodFiltered.filter(isTerminalRow);
-  const terminalRevenue  = terminalRows.filter(function(r) { return r.summa > 0; }).reduce(function(s, r) { return s + r.summa; }, 0);
-  const terminalExpenses = terminalRows.filter(function(r) { return r.summa < 0; }).reduce(function(s, r) { return s + Math.abs(r.summa); }, 0);
+  // Terminal — alohida hisob, BARCHA VAQT bo'yicha (period filtriga bog'liq emas): kirim — jadvaldan, chiqim — jadval (minus) + terminal_expenses
+  const terminalAllRows     = rows.filter(isTerminalRow);
+  const terminalKirimRows   = terminalAllRows.filter(function(r) { return r.summa > 0; });
+  const terminalChiqimItems: TermChiqimItem[] = termExpenseList.map(function(e) {
+    const d = toTashkent(e.created_at);
+    return {
+      key: "db-" + e.id,
+      sana: d.getUTCDate().toString().padStart(2,"0") + "." + (d.getUTCMonth()+1).toString().padStart(2,"0") + "." + d.getUTCFullYear(),
+      dateKey: d.getUTCFullYear() * 10000 + (d.getUTCMonth() + 1) * 100 + d.getUTCDate(),
+      filial: e.filial || "", izoh: e.izoh || "", summa: Number(e.summa), fromSheet: false,
+    };
+  }).concat(terminalAllRows.filter(function(r) { return r.summa < 0; }).map(function(r, i) {
+    return {
+      key: "sh-" + i, sana: r.sana, dateKey: sheetDateKey(r.sana),
+      filial: r.filial, izoh: [r.ism, r.izoh].filter(Boolean).join(" · "), summa: Math.abs(r.summa), fromSheet: true,
+    };
+  })).sort(function(a, b) { return b.dateKey - a.dateKey; });
+  const terminalRevenue  = terminalKirimRows.reduce(function(s, r) { return s + r.summa; }, 0);
+  const terminalExpenses = terminalChiqimItems.reduce(function(s, c) { return s + c.summa; }, 0);
   const terminalProfit   = terminalRevenue - terminalExpenses;
 
   const totalRevenue  = offlineRows.filter(function(r) { return r.summa > 0; }).reduce(function(s, r) { return s + r.summa; }, 0);
@@ -707,7 +778,7 @@ export function Moliya() {
         <div className={cn("sm:col-span-3 rounded-2xl p-5 shadow-soft border cursor-pointer transition", terminalProfit < 0 ? "border-red-200 bg-gradient-to-br from-red-50 to-white hover:border-red-300" : "border-amber-200 bg-gradient-to-br from-amber-50 to-white hover:border-amber-300")} onClick={function() { setModalTerminal(true); }}>
           <p className={cn("text-sm font-medium mb-2", terminalProfit < 0 ? "text-red-700" : "text-amber-700")}>Terminal — Sof foyda</p>
           <p className={cn("text-2xl font-bold num", terminalProfit < 0 ? "text-red-600" : "text-amber-900")}>{terminalProfit < 0 ? "-" : ""}{fmt(terminalProfit)}</p>
-          <p className={cn("text-xs mt-2", terminalProfit < 0 ? "text-red-500" : "text-amber-600")}>{terminalRows.length} ta operatsiya · Batafsil ko'rish</p>
+          <p className={cn("text-xs mt-2", terminalProfit < 0 ? "text-red-500" : "text-amber-600")}>{terminalKirimRows.length + terminalChiqimItems.length} ta operatsiya · Batafsil ko'rish</p>
         </div>
         <div className="sm:col-span-3 rounded-2xl p-5 shadow-soft border border-violet-200 bg-gradient-to-br from-violet-50 to-white hover:border-violet-300 cursor-pointer transition" onClick={function() { setModalPravaOn(true); }}>
           <p className="text-sm font-medium mb-2 text-violet-700">Prava-On — Daromad</p>
@@ -945,35 +1016,177 @@ export function Moliya() {
                 <p className={cn("text-lg font-bold num", terminalProfit < 0 ? "text-red-600" : "text-amber-900")}>{terminalProfit < 0 ? "-" : ""}{fmt(terminalProfit)}</p>
               </div>
             </div>
-            <div className="overflow-y-auto flex-1">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="text-left text-xs text-muted-foreground uppercase tracking-wider bg-secondary/50 border-b border-border">
-                    <th className="px-4 py-3 font-medium">Sana</th>
-                    <th className="px-4 py-3 font-medium">Ism</th>
-                    <th className="px-4 py-3 font-medium">Filial</th>
-                    <th className="px-4 py-3 font-medium text-right">Summa</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border">
-                  {terminalRows.length === 0 ? (
-                    <tr><td colSpan={4} className="px-4 py-10 text-center text-muted-foreground">Terminal operatsiyalari topilmadi</td></tr>
-                  ) : terminalRows.slice().reverse().map(function(r, i) {
-                    return (
-                      <tr key={i} className="hover:bg-secondary/40 transition">
-                        <td className="px-4 py-3 num text-xs text-muted-foreground whitespace-nowrap">{r.sana}</td>
-                        <td className="px-4 py-3">
-                          <p className="font-medium text-sm">{r.ism || "—"}</p>
-                          {r.izoh && <p className="text-xs text-muted-foreground">{r.izoh}</p>}
-                        </td>
-                        <td className="px-4 py-3 text-xs text-muted-foreground">{r.filial || "—"}</td>
-                        <td className={cn("px-4 py-3 text-right num font-semibold whitespace-nowrap", r.summa < 0 ? "text-red-600" : "text-emerald-600")}>{r.summa < 0 ? "-" : "+"}{fmt(r.summa)}</td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+            <div className="px-5 pt-4 flex gap-2">
+              <button onClick={function() { setTerminalTab("kirim"); }}
+                className={cn("px-4 py-2 rounded-lg text-sm font-medium transition",
+                  terminalTab === "kirim" ? "bg-emerald-600 text-white" : "bg-secondary text-muted-foreground hover:text-foreground")}>
+                Kirim
+              </button>
+              <button onClick={function() { setTerminalTab("chiqim"); }}
+                className={cn("px-4 py-2 rounded-lg text-sm font-medium transition",
+                  terminalTab === "chiqim" ? "bg-red-600 text-white" : "bg-secondary text-muted-foreground hover:text-foreground")}>
+                Chiqim
+              </button>
             </div>
+
+            {terminalTab === "kirim" ? (
+              <div className="overflow-y-auto flex-1 mt-4">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="text-left text-xs text-muted-foreground uppercase tracking-wider bg-secondary/50 border-b border-border">
+                      <th className="px-4 py-3 font-medium">Sana</th>
+                      <th className="px-4 py-3 font-medium">Ism</th>
+                      <th className="px-4 py-3 font-medium">Filial</th>
+                      <th className="px-4 py-3 font-medium text-right">Summa</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border">
+                    {terminalKirimRows.length === 0 ? (
+                      <tr><td colSpan={4} className="px-4 py-10 text-center text-muted-foreground">Terminal kirimlari topilmadi</td></tr>
+                    ) : terminalKirimRows.slice().reverse().map(function(r, i) {
+                      return (
+                        <tr key={i} className="hover:bg-secondary/40 transition">
+                          <td className="px-4 py-3 num text-xs text-muted-foreground whitespace-nowrap">{r.sana}</td>
+                          <td className="px-4 py-3">
+                            <p className="font-medium text-sm">{r.ism || "—"}</p>
+                            {r.izoh && <p className="text-xs text-muted-foreground">{r.izoh}</p>}
+                          </td>
+                          <td className="px-4 py-3 text-xs text-muted-foreground">{r.filial || "—"}</td>
+                          <td className="px-4 py-3 text-right num font-semibold whitespace-nowrap text-emerald-600">+{fmt(r.summa)}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <>
+                <div className="px-5 py-3 mt-4 border-y border-border flex items-center gap-2">
+                  <button onClick={function() { setShowTermExpFilter(!showTermExpFilter); }}
+                    className={cn("h-8 w-8 rounded-lg flex items-center justify-center transition relative",
+                      showTermExpFilter || termExpFilterFrom || termExpFilterTo ? "bg-primary text-primary-foreground" : "bg-secondary text-muted-foreground hover:text-foreground")}
+                    title="Sana bo'yicha filtr">
+                    <Filter className="h-4 w-4" />
+                    {(termExpFilterFrom || termExpFilterTo) && !showTermExpFilter && (
+                      <span className="absolute -top-1 -right-1 h-2.5 w-2.5 rounded-full bg-red-500 border-2 border-card" />
+                    )}
+                  </button>
+                  <button onClick={function() { setShowTermExpForm(!showTermExpForm); setTermExpResult(null); }}
+                    className={cn("ml-auto px-4 py-1.5 rounded-lg text-xs font-medium transition inline-flex items-center gap-1",
+                      showTermExpForm ? "bg-primary text-primary-foreground" : "bg-red-600 text-white hover:bg-red-700")}>
+                    <Plus className="h-3.5 w-3.5" />
+                    Chiqim qo'shish
+                  </button>
+                </div>
+
+                {showTermExpFilter && (
+                  <div className="px-5 py-3 border-b border-border flex flex-wrap items-end gap-3 bg-secondary/30">
+                    <div>
+                      <label className="text-xs text-muted-foreground mb-1 block">Dan</label>
+                      <input type="date" value={termExpFilterFrom} onChange={function(e) { setTermExpFilterFrom(e.target.value); }}
+                        className="px-3 py-1.5 rounded-lg border border-border bg-background text-xs" />
+                    </div>
+                    <div>
+                      <label className="text-xs text-muted-foreground mb-1 block">Gacha</label>
+                      <input type="date" value={termExpFilterTo} onChange={function(e) { setTermExpFilterTo(e.target.value); }}
+                        className="px-3 py-1.5 rounded-lg border border-border bg-background text-xs" />
+                    </div>
+                    {(termExpFilterFrom || termExpFilterTo) && (
+                      <button onClick={function() { setTermExpFilterFrom(""); setTermExpFilterTo(""); }}
+                        className="px-3 py-1.5 rounded-lg bg-secondary text-xs text-muted-foreground hover:text-foreground">
+                        Tozalash
+                      </button>
+                    )}
+                  </div>
+                )}
+
+                {showTermExpForm && (
+                  <div className="px-5 py-4 border-b border-border bg-secondary/30">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-3">
+                      <div>
+                        <label className="text-xs text-muted-foreground mb-1 block">Sana</label>
+                        <input type="date" value={termExpSana} onChange={function(e) { setTermExpSana(e.target.value); }}
+                          className="w-full px-3 py-2 rounded-lg border border-border bg-background text-sm" />
+                      </div>
+                      <div>
+                        <label className="text-xs text-muted-foreground mb-1 block">Summa (so'm)</label>
+                        <input type="text" placeholder="500000" value={termExpSumma}
+                          onChange={function(e) { setTermExpSumma(formatSummaInput(e.target.value)); }}
+                          className="w-full px-3 py-2 rounded-lg border border-border bg-background text-sm" />
+                      </div>
+                      <div>
+                        <label className="text-xs text-muted-foreground mb-1 block">Filial</label>
+                        <FilialSelect3 value={termExpFilial} onChange={setTermExpFilial} />
+                      </div>
+                      <div>
+                        <label className="text-xs text-muted-foreground mb-1 block">Izoh (nimaga sarflandi)</label>
+                        <input type="text" placeholder="Masalan: komissiya, soliq..." value={termExpIzoh}
+                          onChange={function(e) { setTermExpIzoh(e.target.value); }}
+                          className="w-full px-3 py-2 rounded-lg border border-border bg-background text-sm" />
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <button onClick={submitTerminalExpense} disabled={termExpSaving}
+                        className="px-5 py-2 bg-red-600 text-white rounded-lg text-sm font-medium hover:bg-red-700 transition disabled:opacity-50 inline-flex items-center gap-2">
+                        {termExpSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                        Saqlash
+                      </button>
+                      {termExpResult && <span className="text-xs text-muted-foreground">{termExpResult}</span>}
+                    </div>
+                  </div>
+                )}
+
+                <div className="overflow-y-auto flex-1">
+                  {(() => {
+                    const fromKey = termExpFilterFrom ? inputDateKey(termExpFilterFrom) : 0;
+                    const toKey   = termExpFilterTo   ? inputDateKey(termExpFilterTo)   : 0;
+                    const filteredChiqim = terminalChiqimItems.filter(function(c) {
+                      if (fromKey && c.dateKey < fromKey) return false;
+                      if (toKey   && c.dateKey > toKey)   return false;
+                      return true;
+                    });
+                    const total = filteredChiqim.reduce(function(s, c) { return s + c.summa; }, 0);
+                    return (
+                      <>
+                        <div className="px-5 py-3 bg-red-50 border-b border-border flex items-center justify-between">
+                          <span className="text-sm text-red-700 font-medium">{termExpLoading ? "yuklanmoqda…" : `${filteredChiqim.length} ta chiqim`}</span>
+                          <span className="num font-bold text-red-900">{fmt(total)}</span>
+                        </div>
+                        <table className="w-full text-sm">
+                          <thead>
+                            <tr className="text-left text-xs text-muted-foreground uppercase tracking-wider bg-secondary/50 border-b border-border">
+                              <th className="px-4 py-3 font-medium w-8">#</th>
+                              <th className="px-4 py-3 font-medium">Sana</th>
+                              <th className="px-4 py-3 font-medium">Filial</th>
+                              <th className="px-4 py-3 font-medium">Izoh</th>
+                              <th className="px-4 py-3 font-medium text-right">Summa</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-border">
+                            {filteredChiqim.length === 0 ? (
+                              <tr><td colSpan={5} className="px-4 py-10 text-center text-muted-foreground">Chiqimlar topilmadi</td></tr>
+                            ) : filteredChiqim.map(function(c, i) {
+                              return (
+                                <tr key={c.key} className="hover:bg-secondary/40 transition">
+                                  <td className="px-4 py-3 text-muted-foreground text-xs">{i + 1}</td>
+                                  <td className="px-4 py-3 num text-xs text-muted-foreground whitespace-nowrap">{c.sana}</td>
+                                  <td className="px-4 py-3 text-xs text-muted-foreground">{c.filial || "—"}</td>
+                                  <td className="px-4 py-3 text-xs text-muted-foreground">
+                                    {c.izoh || "—"}
+                                    {c.fromSheet && <span className="ml-2 px-1.5 py-0.5 rounded bg-secondary text-[10px] text-muted-foreground">jadval</span>}
+                                  </td>
+                                  <td className="px-4 py-3 text-right num font-semibold text-red-600 whitespace-nowrap">-{fmt(c.summa)}</td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </>
+                    );
+                  })()}
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}
