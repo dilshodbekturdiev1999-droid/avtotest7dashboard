@@ -1,5 +1,5 @@
 // Google Sheets: yangi akkauntdagi jadvallar (avto7 papkasi)
-export const SHEETS_API_KEY = "AIzaSyB4kyYep05877BBpI9Rfv0SNcFhHVGBF5E"; // TODO: yangi Cloud loyihadagi kalit bilan almashtirish
+export const SHEETS_API_KEY = "AIzaSyAOaxr1LQUrHHNG1VhvQfgt6p__hezkvRk"; // yangi akkaunt (dilshod1999 loyihasi), faqat Sheets API
 
 export const SHEET_IDS = {
   moliya:   "1uyCYnmXht_hsWnz19lAkhOq0Iu2yXI3vE1U8R4QcKDQ", // 1-jadval ( Moliya )
