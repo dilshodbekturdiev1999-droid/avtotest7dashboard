@@ -15,7 +15,6 @@ const CHIQIM_COLORS: Record<string, string> = {
   "Oylik":                        "hsl(142 60% 45%)",
   "Soliq":                        "hsl(38 92% 50%)",
   "Arenda Novza":                 "hsl(200 70% 50%)",
-  "Arenda Yunusobod":             "hsl(190 60% 40%)",
   "Arenda Tinclik":               "hsl(180 55% 40%)",
   "Ofis harajat":                 "hsl(160 50% 45%)",
   "KPI":                          "hsl(25 85% 55%)",
@@ -293,7 +292,7 @@ export function MoliyaChiqim() {
       .then(data => {
         const all: string[][] = data.values ?? [];
         const parsed: Row[] = all.slice(1)
-          .filter(r => r[0] && r[5])
+          .filter(r => r[0] && r[5] && !/yunus/i.test(r[2] ?? "") && !/yunus/i.test(r[8] ?? ""))
           .map(r => ({
             sana:         r[0] ?? "",
             filial:       r[2] ?? "",
@@ -382,7 +381,7 @@ export function MoliyaChiqim() {
           <div>
             <label className="text-xs text-muted-foreground mb-1 block">Filial</label>
             <div className="flex rounded-lg border border-border overflow-hidden text-sm font-medium">
-              {["Barchasi", "Novza", "Yunusobod", "Tinclik"].map(f => (
+              {["Barchasi", "Novza", "Tinclik"].map(f => (
                 <button key={f} onClick={() => setFilial(f)}
                   className={cn("flex-1 py-2 px-2 transition border-r border-border last:border-0 text-xs",
                     filial === f ? "bg-primary text-primary-foreground" : "bg-background text-muted-foreground hover:text-foreground")}>

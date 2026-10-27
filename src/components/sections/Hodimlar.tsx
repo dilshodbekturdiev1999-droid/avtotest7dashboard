@@ -85,7 +85,7 @@ export function Hodimlar() {
         .then((res) => { if (!res.ok) throw new Error(`Employees xatosi: ${res.status}`); return res.json(); }),
     ])
       .then(([shifts, employees]: [ShiftRaw[], EmployeeRaw[]]) => {
-        const mapped: HodimRow[] = shifts.map((r) => {
+        const mapped: HodimRow[] = shifts.filter((r) => !/yunus/i.test(r.filial || "")).map((r) => {
           const startT = r.start_time ? toTashkent(r.start_time) : null;
           const endT = r.end_time ? toTashkent(r.end_time) : null;
           const minutes = r.duration_seconds != null
@@ -131,7 +131,7 @@ export function Hodimlar() {
   const avgM = Math.round(avgMinutes % 60);
   const mostHours = [...filtered].filter(r => r.minutes > 0).sort((a, b) => b.minutes - a.minutes)[0];
   const novzaCount = filtered.filter(r => r.filial.includes("Novza")).length;
-  const yunusobodCount = filtered.filter(r => r.filial.includes("Yunusobod")).length;
+  const tinclikCount = filtered.filter(r => r.filial.includes("Tinclik")).length;
 
   function calcOylik() {
     if (!calcIsm || !calcFrom || !calcTo || !calcStavka || !calcNorma) {
@@ -232,7 +232,7 @@ export function Hodimlar() {
             <div className="h-8 w-8 rounded-full bg-purple-100 flex items-center justify-center"><Users className="h-4 w-4 text-purple-600" /></div>
           </div>
           <p className="text-2xl font-bold text-purple-900">{filtered.length}</p>
-          <p className="text-xs text-purple-600 mt-1">Novza: {novzaCount}  |  Yunusobod: {yunusobodCount}</p>
+          <p className="text-xs text-purple-600 mt-1">Novza: {novzaCount}  |  Tinclik: {tinclikCount}</p>
         </div>
 
         <div className="rounded-2xl p-5 shadow-soft border border-amber-100 bg-gradient-to-br from-amber-50 to-white">

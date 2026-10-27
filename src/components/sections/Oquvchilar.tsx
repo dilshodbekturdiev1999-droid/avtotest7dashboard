@@ -65,7 +65,7 @@ export function Oquvchilar() {
       .then(data => {
         const rows: string[][] = data.values ?? [];
         const parsed: DavRow[] = rows.slice(1)
-          .filter(r => r[0])
+          .filter(r => r[0] && !/yunus/i.test(r[2] ?? ""))
           .map(r => ({
             ism:                  r[0] ?? "",
             telefon:              r[1] ?? "",
@@ -337,7 +337,7 @@ export function Oquvchilar() {
             ))}
           </div>
           <div className="flex gap-2 mb-4">
-            {["Barchasi", "Novza", "Yunusobod", "Tinclik"].map(f => (
+            {["Barchasi", "Novza", "Tinclik"].map(f => (
               <button key={f} onClick={() => setFilterFilial(f)}
                 className={cn("px-3 py-1 rounded-full text-xs font-medium transition border",
                   filterFilial === f ? "bg-primary text-primary-foreground border-primary" : "border-border text-muted-foreground hover:text-foreground")}>

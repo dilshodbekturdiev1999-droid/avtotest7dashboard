@@ -116,7 +116,7 @@ function Toggle({ left, right, value, onChange }: {
 function FilialSelect3({ value, onChange }: { value: string; onChange: (v: string) => void }) {
   return (
     <div className="flex rounded-lg border border-border overflow-hidden text-sm font-medium">
-      {["Novza", "Yunusobod", "Tinclik"].map(f => (
+      {["Novza", "Tinclik"].map(f => (
         <button key={f} onClick={() => onChange(f)}
           className={cn("flex-1 py-2 px-2 transition border-l border-border first:border-l-0",
             value === f ? "bg-primary text-primary-foreground" : "bg-background text-muted-foreground hover:text-foreground")}>
@@ -177,10 +177,12 @@ export function Baza() {
       .then(r => { if (!r.ok) throw new Error(`API xatosi: ${r.status}`); return r.json(); })
       .then(data => {
         const rows: string[][] = data.values ?? [];
+        // rowIndex jadvaldagi haqiqiy qator raqami: filtrdan OLDIN hisoblanadi (tahrirlashda aynan shu qator yangilanadi)
         const parsed: Client[] = rows.slice(1)
-          .filter(r => r.length >= 2 && r[1])
-          .map((r, i) => ({
-            rowIndex:   i + 2,
+          .map((r, i) => ({ r, rowIndex: i + 2 }))
+          .filter(({ r }) => r.length >= 2 && r[1] && !/yunus/i.test(r[3] ?? ""))
+          .map(({ r, rowIndex }) => ({
+            rowIndex,
             nomer:      r[0]  ?? "",
             ism:        r[1]  ?? "",
             telefon:    r[2]  ?? "",
@@ -452,7 +454,7 @@ export function Baza() {
             className="w-full pl-9 pr-4 py-2 rounded-lg border border-border bg-card text-sm" />
         </div>
         <div className="flex rounded-lg border border-border overflow-hidden text-sm font-medium">
-          {["Barchasi", "Novza", "Yunusobod", "Tinclik"].map(f => (
+          {["Barchasi", "Novza", "Tinclik"].map(f => (
             <button key={f} onClick={() => setFilterFilial(f)}
               className={cn("px-4 py-2 transition border-r border-border last:border-0",
                 filterFilial === f ? "bg-primary text-primary-foreground" : "bg-card text-muted-foreground hover:text-foreground")}>

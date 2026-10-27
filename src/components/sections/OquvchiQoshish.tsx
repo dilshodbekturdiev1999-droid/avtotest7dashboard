@@ -32,7 +32,7 @@ function Toggle({ left, right, value, onChange }: {
 function FilialSelect3({ value, onChange }: { value: string; onChange: (v: string) => void }) {
   return (
     <div className="flex rounded-lg border border-border overflow-hidden text-sm font-medium">
-      {["Novza", "Yunusobod", "Tinclik"].map(f => (
+      {["Novza", "Tinclik"].map(f => (
         <button key={f} onClick={() => onChange(f)}
           className={cn("flex-1 py-2 px-2 transition border-l border-border first:border-l-0",
             value === f ? "bg-primary text-primary-foreground" : "bg-background text-muted-foreground hover:text-foreground")}>

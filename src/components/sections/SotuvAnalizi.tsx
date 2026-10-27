@@ -265,6 +265,7 @@ export function SotuvAnalizi() {
 
         all2.slice(1).forEach((row) => {
           if (!row[1]) return; // пустая строка
+          if (/yunus/i.test(row[3] ?? "")) return; // филиал Yunusobod больше не учитывается
 
           const hodimRaw = (row[14] ?? "").trim(); // O = Hodim (yangi jadval)
           const hodim    = resolveManager(hodimRaw); // Shamsiddin → Rais

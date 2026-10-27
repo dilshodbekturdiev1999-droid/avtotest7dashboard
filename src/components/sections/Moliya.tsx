@@ -20,7 +20,6 @@ const BUCKETS: Bucket[] = [
   { id: "oqit_op",   nomi: "O'qituvchilar + operatorlar", summa: 38000000, kun: 4,  chiqimTuri: "Oylik",                       hasDate: true  },
   { id: "rahbar_7",  nomi: "Rahbarlar oyligi (7-kun)",    summa: 26000000, kun: 7,  chiqimTuri: "Foyda",                       hasDate: true  },
   { id: "ar_novza",  nomi: "Novza filial arendasi",       summa: 18000000, kun: 7,  chiqimTuri: "Arenda Novza",                hasDate: true  },
-  { id: "ar_yunus",  nomi: "Yunusobod filial arendasi",   summa: 8500000,  kun: 9,  chiqimTuri: "Arenda Yunusobod",            hasDate: true  },
   { id: "doniyor",   nomi: "Doniyor aka (sherik)",        summa: 20000000, kun: 10, chiqimTuri: "Mavsumiy sherik doniyor aka", hasDate: true  },
   { id: "rahbar_14", nomi: "Rahbarlar oyligi (14-kun)",   summa: 26000000, kun: 14, chiqimTuri: "Foyda",                       hasDate: true  },
   { id: "rop",       nomi: "Rop oyligi",                  summa: 7000000,  kun: 15, chiqimTuri: "Oylik",                       hasDate: true  },
@@ -289,7 +288,7 @@ function TuriSelect3({ value, onChange }: { value: string; onChange: (v: string)
 function FilialSelect3({ value, onChange }: { value: string; onChange: (v: string) => void }) {
   return (
     <div className="flex rounded-lg border border-border overflow-hidden text-sm font-medium">
-      {["Novza", "Yunusobod", "Tinclik"].map(function(f) {
+      {["Novza", "Tinclik"].map(function(f) {
         return (
           <button key={f} onClick={() => onChange(f)}
             className={cn("flex-1 py-2 px-2 transition border-l border-border first:border-l-0",
@@ -328,7 +327,7 @@ export function Moliya() {
   const [rejIzoh, setRejIzoh] = useState("");
   const [rejLoading, setRejLoading] = useState(false);
   const [rejResult, setRejResult] = useState<string | null>(null);
-  const [modalFilial, setModalFilial] = useState<"Novza" | "Yunusobod" | "Tinclik" | null>(null);
+  const [modalFilial, setModalFilial] = useState<"Novza" | "Tinclik" | null>(null);
   const [modalTerminal, setModalTerminal] = useState(false);
   const [termExpenseList, setTermExpenseList] = useState<TerminalExpense[]>([]);
   const [termExpLoading, setTermExpLoading] = useState(false);
@@ -377,7 +376,7 @@ export function Moliya() {
       .then(function(data) {
         const allRows = data.values as string[][];
         const dataRows = allRows.slice(1);
-        setRows(dataRows.filter(function(r) { return r.length >= 6 && r[0] && r[5]; }).map(function(r) {
+        setRows(dataRows.filter(function(r) { return r.length >= 6 && r[0] && r[5] && !/yunus/i.test(r[2] || "") && !/yunus/i.test(r[8] || ""); }).map(function(r) {
           return {
             sana: r[0] || "", ism: r[1] || "", filial: r[2] || "", onlineOfline: r[3] || "",
             turi: r[4] || "", summa: parseSumma(r[5]), kirimChiqim: r[6] || "", izoh: r[7] || "",
@@ -429,7 +428,7 @@ export function Moliya() {
       headers: { "apikey": SUPABASE_KEY, "Authorization": `Bearer ${SUPABASE_KEY}` },
     })
     .then(function(r) { return r.json(); })
-    .then(function(data) { setPravaOnExpenses(Array.isArray(data) ? data : []); })
+    .then(function(data) { setPravaOnExpenses(Array.isArray(data) ? data.filter(function(e) { return !/yunus/i.test(e.filial || ""); }) : []); })
     .catch(function() {})
     .finally(function() { setExpLoading(false); });
   };
@@ -459,7 +458,7 @@ export function Moliya() {
       headers: { "apikey": SUPABASE_KEY, "Authorization": `Bearer ${SUPABASE_KEY}` },
     })
     .then(function(r) { return r.json(); })
-    .then(function(data) { setTermExpenseList(Array.isArray(data) ? data : []); })
+    .then(function(data) { setTermExpenseList(Array.isArray(data) ? data.filter(function(e) { return !/yunus/i.test(e.filial || ""); }) : []); })
     .catch(function() {})
     .finally(function() { setTermExpLoading(false); });
   };
@@ -565,9 +564,6 @@ export function Moliya() {
   const novzaRevenue    = offlineRows.filter(function(r) { return r.summa > 0 && r.filial === "Novza"; }).reduce(function(s, r) { return s + r.summa; }, 0);
   const novzaExpenses   = offlineRows.filter(function(r) { return r.summa < 0 && r.filial === "Novza"; }).reduce(function(s, r) { return s + Math.abs(r.summa); }, 0);
   const novzaProfit     = novzaRevenue - novzaExpenses;
-  const yunusobodRevenue  = offlineRows.filter(function(r) { return r.summa > 0 && r.filial === "Yunusobod"; }).reduce(function(s, r) { return s + r.summa; }, 0);
-  const yunusobodExpenses = offlineRows.filter(function(r) { return r.summa < 0 && r.filial === "Yunusobod"; }).reduce(function(s, r) { return s + Math.abs(r.summa); }, 0);
-  const yunusobodProfit   = yunusobodRevenue - yunusobodExpenses;
   const tinclikRevenue    = offlineRows.filter(function(r) { return r.summa > 0 && r.filial === "Tinclik"; }).reduce(function(s, r) { return s + r.summa; }, 0);
   const tinclikExpenses   = offlineRows.filter(function(r) { return r.summa < 0 && r.filial === "Tinclik"; }).reduce(function(s, r) { return s + Math.abs(r.summa); }, 0);
   const tinclikProfit     = tinclikRevenue - tinclikExpenses;
@@ -620,9 +616,9 @@ export function Moliya() {
   ];
 
   const modalData = modalFilial ? {
-    revenue:  modalFilial === "Novza" ? novzaRevenue  : modalFilial === "Yunusobod" ? yunusobodRevenue  : tinclikRevenue,
-    expenses: modalFilial === "Novza" ? novzaExpenses : modalFilial === "Yunusobod" ? yunusobodExpenses : tinclikExpenses,
-    profit:   modalFilial === "Novza" ? novzaProfit   : modalFilial === "Yunusobod" ? yunusobodProfit   : tinclikProfit,
+    revenue:  modalFilial === "Novza" ? novzaRevenue  : tinclikRevenue,
+    expenses: modalFilial === "Novza" ? novzaExpenses : tinclikExpenses,
+    profit:   modalFilial === "Novza" ? novzaProfit   : tinclikProfit,
   } : null;
 
   return (
@@ -707,17 +703,12 @@ export function Moliya() {
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-6 gap-4 mb-6">
-        <div className={cn("sm:col-span-2 rounded-2xl p-5 shadow-soft border cursor-pointer transition", novzaProfit < 0 ? "border-red-200 bg-gradient-to-br from-red-50 to-white hover:border-red-300" : "border-blue-100 bg-gradient-to-br from-blue-50 to-white hover:border-blue-300")} onClick={function() { setModalFilial("Novza"); }}>
+        <div className={cn("sm:col-span-3 rounded-2xl p-5 shadow-soft border cursor-pointer transition", novzaProfit < 0 ? "border-red-200 bg-gradient-to-br from-red-50 to-white hover:border-red-300" : "border-blue-100 bg-gradient-to-br from-blue-50 to-white hover:border-blue-300")} onClick={function() { setModalFilial("Novza"); }}>
           <p className={cn("text-sm font-medium mb-2", novzaProfit < 0 ? "text-red-700" : "text-blue-700")}>Novza — Sof foyda</p>
           <p className={cn("text-2xl font-bold num", novzaProfit < 0 ? "text-red-600" : "text-blue-900")}>{novzaProfit < 0 ? "-" : ""}{fmt(novzaProfit)}</p>
           <p className={cn("text-xs mt-2", novzaProfit < 0 ? "text-red-500" : "text-blue-600")}>Batafsil ko'rish</p>
         </div>
-        <div className={cn("sm:col-span-2 rounded-2xl p-5 shadow-soft border cursor-pointer transition", yunusobodProfit < 0 ? "border-red-200 bg-gradient-to-br from-red-50 to-white hover:border-red-300" : "border-blue-100 bg-gradient-to-br from-blue-50 to-white hover:border-blue-300")} onClick={function() { setModalFilial("Yunusobod"); }}>
-          <p className={cn("text-sm font-medium mb-2", yunusobodProfit < 0 ? "text-red-700" : "text-blue-700")}>Yunusobod — Sof foyda</p>
-          <p className={cn("text-2xl font-bold num", yunusobodProfit < 0 ? "text-red-600" : "text-blue-900")}>{yunusobodProfit < 0 ? "-" : ""}{fmt(yunusobodProfit)}</p>
-          <p className={cn("text-xs mt-2", yunusobodProfit < 0 ? "text-red-500" : "text-blue-600")}>Batafsil ko'rish</p>
-        </div>
-        <div className={cn("sm:col-span-2 rounded-2xl p-5 shadow-soft border cursor-pointer transition", tinclikProfit < 0 ? "border-red-200 bg-gradient-to-br from-red-50 to-white hover:border-red-300" : "border-blue-100 bg-gradient-to-br from-blue-50 to-white hover:border-blue-300")} onClick={function() { setModalFilial("Tinclik"); }}>
+        <div className={cn("sm:col-span-3 rounded-2xl p-5 shadow-soft border cursor-pointer transition", tinclikProfit < 0 ? "border-red-200 bg-gradient-to-br from-red-50 to-white hover:border-red-300" : "border-blue-100 bg-gradient-to-br from-blue-50 to-white hover:border-blue-300")} onClick={function() { setModalFilial("Tinclik"); }}>
           <p className={cn("text-sm font-medium mb-2", tinclikProfit < 0 ? "text-red-700" : "text-blue-700")}>Tinclik — Sof foyda</p>
           <p className={cn("text-2xl font-bold num", tinclikProfit < 0 ? "text-red-600" : "text-blue-900")}>{tinclikProfit < 0 ? "-" : ""}{fmt(tinclikProfit)}</p>
           <p className={cn("text-xs mt-2", tinclikProfit < 0 ? "text-red-500" : "text-blue-600")}>Batafsil ko'rish</p>
@@ -931,7 +922,7 @@ export function Moliya() {
                 <p className={cn("text-xs font-medium mb-1", totalProfit < 0 ? "text-red-700" : "text-purple-700")}>Umumiy sof foyda (offline filiallar)</p>
                 <p className={cn("text-xl font-bold num", totalProfit < 0 ? "text-red-600" : "text-purple-900")}>{totalProfit < 0 ? "-" : ""}{fmt(totalProfit)}</p>
                 <p className={cn("text-xs mt-1", totalProfit < 0 ? "text-red-500" : "text-purple-600")}>
-                  Novza: {novzaProfit < 0 ? "-" : ""}{fmt(novzaProfit)} + Yunusobod: {yunusobodProfit < 0 ? "-" : ""}{fmt(yunusobodProfit)} + Tinclik: {tinclikProfit < 0 ? "-" : ""}{fmt(tinclikProfit)}
+                  Novza: {novzaProfit < 0 ? "-" : ""}{fmt(novzaProfit)} + Tinclik: {tinclikProfit < 0 ? "-" : ""}{fmt(tinclikProfit)}
                 </p>
               </div>
             </div>
@@ -1336,7 +1327,7 @@ export function Moliya() {
                       </div>
                       <div>
                         <label className="text-xs text-muted-foreground mb-1 block">Filial</label>
-                        <Toggle left="Novza" right="Yunusobod" value={expFilial} onChange={setExpFilial} />
+                        <Toggle left="Novza" right="Tinclik" value={expFilial} onChange={setExpFilial} />
                       </div>
                       <div>
                         <label className="text-xs text-muted-foreground mb-1 block">Izoh (nimaga sarflandi)</label>
@@ -1479,7 +1470,7 @@ export function Moliya() {
           <div>
             <label className="text-xs text-muted-foreground mb-1 block">Filial</label>
             <div className="flex rounded-lg border border-border overflow-hidden text-sm font-medium">
-              {["Barchasi", "Novza", "Yunusobod", "Tinclik"].map(function(v) {
+              {["Barchasi", "Novza", "Tinclik"].map(function(v) {
                 return (
                   <button key={v} onClick={function() { setFilterFilial(v); }} className={cn("flex-1 py-2 px-2 transition border-r border-border last:border-0 text-xs", filterFilial === v ? "bg-primary text-primary-foreground" : "bg-background text-muted-foreground hover:text-foreground")}>{v}</button>
                 );
