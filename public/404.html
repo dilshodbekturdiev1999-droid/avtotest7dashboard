@@ -2,13 +2,16 @@
 <html>
   <head>
     <meta charset="utf-8">
+    <title>AVTOTEST7</title>
     <script>
+      // GitHub Pages SPA yo'naltirish: noma'lum yo'l /?/yo'l ko'rinishida bosh sahifaga qaytariladi,
+      // index.html dagi skript uni asl manzilga qaytaradi. Domen ildizda, shuning uchun segmentCount = 0.
+      var segmentCount = 0;
       var l = window.location;
       l.replace(
         l.protocol + '//' + l.hostname + (l.port ? ':' + l.port : '') +
-        l.pathname.split('/').slice(0, 2).join('/') +
-        '/?/' +
-        l.pathname.slice(1).split('/').slice(1).join('/').replace(/&/g, '~and~') +
+        l.pathname.split('/').slice(0, 1 + segmentCount).join('/') + '/?/' +
+        l.pathname.slice(1).split('/').slice(segmentCount).join('/').replace(/&/g, '~and~') +
         (l.search ? '&' + l.search.slice(1).replace(/&/g, '~and~') : '') +
         l.hash
       );

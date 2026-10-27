@@ -4,7 +4,7 @@ import path from "path";
 import { componentTagger } from "lovable-tagger";
 
 export default defineConfig(({ mode }) => ({
-  base: '/avtotest7dashboard/',
+  base: '/', // avtotest7.com (korenga ulangan domen)
   server: {
     host: "::",
     port: 8080,
