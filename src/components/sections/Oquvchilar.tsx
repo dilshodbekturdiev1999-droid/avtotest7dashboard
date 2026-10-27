@@ -1,10 +1,11 @@
 import { useEffect, useState } from "react";
+import { SHEETS_API_KEY, SHEET_IDS } from "@/lib/sheets";
 import { Header } from "@/components/dashboard/Header";
 import { Loader2, AlertCircle, Search, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-const SHEET_DAVO = "14nKtubJjuMJhQ9NQO8ORIfFGYAbBVKYrKDZpB96vc6Q";
-const API_KEY    = "AIzaSyB4kyYep05877BBpI9Rfv0SNcFhHVGBF5E";
+const SHEET_DAVO = SHEET_IDS.davomat;
+const API_KEY    = SHEETS_API_KEY;
 const RANGE_DAVO = "%D0%9B%D0%B8%D1%81%D1%821!A:I";
 
 const VAQTLAR = ["10:00","13:00","15:00","19:00","21:00"];

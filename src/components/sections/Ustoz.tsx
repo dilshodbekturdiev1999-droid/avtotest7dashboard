@@ -1,12 +1,13 @@
 import { useEffect, useState } from "react";
+import { SHEETS_API_KEY, SHEET_IDS } from "@/lib/sheets";
+import { callScript } from "@/lib/api";
 import { Header } from "@/components/dashboard/Header";
 import { Loader2, AlertCircle, Search, Plus, X, Check, UserMinus } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-const SHEET_DAVO = "14nKtubJjuMJhQ9NQO8ORIfFGYAbBVKYrKDZpB96vc6Q";
-const API_KEY    = "AIzaSyB4kyYep05877BBpI9Rfv0SNcFhHVGBF5E";
+const SHEET_DAVO = SHEET_IDS.davomat;
+const API_KEY    = SHEETS_API_KEY;
 const RANGE_DAVO = "%D0%9B%D0%B8%D1%81%D1%821!A:N";
-const WEBHOOK    = "https://n8n.srv1215497.hstgr.cloud/webhook/davomat";
 
 const VAQTLAR = ["10:00","13:00","15:00","19:00","21:00"];
 
@@ -232,26 +233,19 @@ export function Ustoz() {
     const today     = todayStr();
     const kunRaqami = student.rows.filter(r => r.sana).length + 1;
     try {
-      await fetch(WEBHOOK, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action:     "mark",
-          ism:        student.ism,
-          telefon:    student.telefon,
-          filial:     student.filial,
-          smena:      student.smena,
-          sana:       today,
-          holat,
-          kun_raqami: kunRaqami,
-        }),
+      await callScript("davomat_mark", {
+        ism:        student.ism,
+        telefon:    student.telefon,
+        filial:     student.filial,
+        smena:      student.smena,
+        sana:       today,
+        holat,
+        kun_raqami: kunRaqami,
       });
       const scrollY = window.scrollY;
-      setTimeout(() => {
-        fetchAll(true);
-        setTimeout(() => window.scrollTo(0, scrollY), 150);
-      }, 1500);
-    } catch {}
+      fetchAll(true);
+      setTimeout(() => window.scrollTo(0, scrollY), 150);
+    } catch (e) { alert(`Davomat saqlanmadi: ${(e as Error).message}`); }
     finally { setMarking(m => ({ ...m, [key]: false })); }
   }
 
@@ -271,66 +265,48 @@ export function Ustoz() {
     if (!editStudent) return;
     setEditLoading(true); setEditResult(null);
     try {
-      await fetch(WEBHOOK, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action:                    "edit_student",
-          ism:                       editStudent.ism,
-          telefon:                   editStudent.telefon,
-          imtihon:                   toSheetDate(editImtihon),
-          prava_oldi:                editPrava ? "Oldi" : "",
-          prava_olish_sanasi:        editPrava ? toSheetDate(editPravaSana) : "",
-          imtihondan_yiqildi:        editYiqildi ? "Ha" : "",
-          imtihondan_yiqilgan_sana:  editYiqildi ? toSheetDate(editYiqildiSana) : "",
-          chetlatildi:               editChetlatildi ? "Ha" : "",
-          chetlatildi_sanasi:        editChetlatildi ? toSheetDate(editChetlatildiSana) : "",
-        }),
+      await callScript("davomat_edit", {
+        ism:                       editStudent.ism,
+        telefon:                   editStudent.telefon,
+        imtihon:                   toSheetDate(editImtihon),
+        prava_oldi:                editPrava ? "Oldi" : "",
+        prava_olish_sanasi:        editPrava ? toSheetDate(editPravaSana) : "",
+        imtihondan_yiqildi:        editYiqildi ? "Ha" : "",
+        imtihondan_yiqilgan_sana:  editYiqildi ? toSheetDate(editYiqildiSana) : "",
+        chetlatildi:               editChetlatildi ? "Ha" : "",
+        chetlatildi_sanasi:        editChetlatildi ? toSheetDate(editChetlatildiSana) : "",
       });
       setEditResult("✅ Saqlandi!");
       setEditStudent(null);
-      setTimeout(() => fetchAll(), 2000);
-    } catch { setEditResult("❌ Xatolik"); }
+      fetchAll();
+    } catch (e) { setEditResult(`❌ ${(e as Error).message}`); }
     finally { setEditLoading(false); }
   }
 
   async function removeStudent(student: Student) {
     if (!confirm(`${student.ism} o'chirilsinmi?`)) return;
     try {
-      await fetch(WEBHOOK, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action:  "remove_student",
-          ism:     student.ism,
-          telefon: student.telefon,
-        }),
-      });
-      setTimeout(() => fetchAll(), 1500);
-    } catch {}
+      await callScript("davomat_remove", { ism: student.ism, telefon: student.telefon });
+      fetchAll();
+    } catch (e) { alert(`O'chirilmadi: ${(e as Error).message}`); }
   }
 
   async function submitAdd() {
     if (!addIsm || !addTel) { setAddResult("❌ Ism va telefonni kiriting"); return; }
     setAddLoading(true); setAddResult(null);
     try {
-      await fetch(WEBHOOK, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action:                 "add_student",
-          ism:                    addIsm,
-          telefon:                addTel,
-          filial:                 addFilial,
-          smena:                  addSmena,
-          dars_kuni:              toSheetDate(addDars),
-          dars_boshlanish_sanasi: toSheetDate(addDars),
-        }),
+      await callScript("davomat_add", {
+        ism:                    addIsm,
+        telefon:                addTel,
+        filial:                 addFilial,
+        smena:                  addSmena,
+        dars_kuni:              toSheetDate(addDars),
+        dars_boshlanish_sanasi: toSheetDate(addDars),
       });
       setAddResult("✅ Saqlandi!");
       setAddIsm(""); setAddTel(""); setAddDars(todayInput());
-      setTimeout(() => fetchAll(), 2000);
-    } catch { setAddResult("❌ Xatolik"); }
+      fetchAll();
+    } catch (e) { setAddResult(`❌ ${(e as Error).message}`); }
     finally { setAddLoading(false); }
   }
 

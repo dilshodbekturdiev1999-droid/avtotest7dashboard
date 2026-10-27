@@ -1,12 +1,13 @@
 import { useEffect, useState } from "react";
+import { SHEETS_API_KEY, SHEET_IDS } from "@/lib/sheets";
 import { Header } from "@/components/dashboard/Header";
 import { Loader2, AlertCircle, ChevronDown, ChevronUp } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts";
 
-const SHEET_ID  = "1bLel0b3ULXWJ71Tgn_ynl5fvBrDIMZXo-CzeV9lnE3k";
+const SHEET_ID  = SHEET_IDS.moliya;
 const SHEET_NAME = "moliya";
-const API_KEY   = "AIzaSyB4kyYep05877BBpI9Rfv0SNcFhHVGBF5E";
+const API_KEY   = SHEETS_API_KEY;
 
 const CHIQIM_COLORS: Record<string, string> = {
   "Marketing":                    "hsl(230 70% 55%)",

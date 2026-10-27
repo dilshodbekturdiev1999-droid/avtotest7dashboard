@@ -2,11 +2,13 @@ import { useEffect, useState } from "react";
 import { Header } from "@/components/dashboard/Header";
 import { Loader2, AlertCircle, Plus, X, Search, Trash2, Pencil } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { SUPABASE_URL, SUPABASE_KEY, allowPhone, changePhone } from "@/lib/supabase";
 
-const SUPABASE_URL = "https://ziqzprosgzevkdfwyotl.supabase.co";
-const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InppcXpwcm9zZ3pldmtkZnd5b3RsIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2NjM0MDAzMCwiZXhwIjoyMDgxOTE2MDMwfQ.vv56u5cQ0VToYDhyYGpbt2phr7PAwAbmtheY2h25yyQ";
-const WEBHOOK = "https://n8n.srv1215497.hstgr.cloud/webhook/admin";
-const ADD_WEBHOOK = "https://n8n.srv1215497.hstgr.cloud/webhook/add";
+// "2026-10-28" -> "28.10.2026"
+function toSheetDate(input: string): string {
+  const p = input.split("-");
+  return p.length < 3 ? input : `${p[2]}.${p[1]}.${p[0]}`;
+}
 
 function formatDate(raw: string): string {
   if (!raw) return "—";
@@ -32,6 +34,11 @@ interface Phone {
   created_at: string;
   device_id: string | null;
   last_seen: string | null;
+  ism: string | null;
+  summa: number | null;
+  sana: string | null;
+  turi: string | null;
+  filial: string | null;
 }
 
 function Toggle({ left, right, value, onChange }: {
@@ -106,23 +113,17 @@ export function OnlineDostup() {
     if (!addPhone) { setAddResult("❌ Telefon raqamini kiriting"); return; }
     setAddLoading(true); setAddResult(null);
     try {
-      await fetch(ADD_WEBHOOK, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action:  "give_access",
-          ism:     addIsm,
-          telefon: addPhone,
-          summa:   addSumma.replace(/\s/g, ""),
-          sana:    addSana,
-          turi:    addTuri,
-          filial:  addFilial,
-        }),
+      await allowPhone(addPhone, {
+        ism:    addIsm.trim(),
+        summa:  addSumma ? parseInt(addSumma.replace(/\s/g, "")) : null,
+        sana:   toSheetDate(addSana),
+        turi:   addTuri,
+        filial: addFilial,
       });
       setAddResult("✅ Saqlandi!");
       setAddIsm(""); setAddPhone(""); setAddSumma(""); setAddSana(todayInput());
-      setTimeout(() => fetchPhones(), 2000);
-    } catch { setAddResult("❌ Xatolik yuz berdi"); }
+      fetchPhones();
+    } catch (e) { setAddResult(`❌ ${(e as Error).message}`); }
     finally { setAddLoading(false); }
   }
 
@@ -130,20 +131,11 @@ export function OnlineDostup() {
     if (!editPhone || !editNewPhone) return;
     setEditLoading(true); setEditResult(null);
     try {
-      await fetch(WEBHOOK, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action:      "edit_phone",
-          id:          editPhone.id,
-          old_telefon: editPhone.telefon_raqami,
-          new_telefon: editNewPhone,
-        }),
-      });
+      await changePhone(editPhone.id, editNewPhone);
       setEditResult("✅ Saqlandi!");
       setEditPhone(null);
-      setTimeout(() => fetchPhones(), 2000);
-    } catch { setEditResult("❌ Xatolik"); }
+      fetchPhones();
+    } catch (e) { setEditResult(`❌ ${(e as Error).message}`); }
     finally { setEditLoading(false); }
   }
 
@@ -278,7 +270,12 @@ export function OnlineDostup() {
             <thead>
               <tr className="text-left text-xs text-muted-foreground uppercase tracking-wider bg-secondary/50 border-b border-border">
                 <th className="px-4 py-3 font-medium">№</th>
+                <th className="px-4 py-3 font-medium">Ism</th>
                 <th className="px-4 py-3 font-medium">Telefon</th>
+                <th className="px-4 py-3 font-medium">Summa</th>
+                <th className="px-4 py-3 font-medium">Turi</th>
+                <th className="px-4 py-3 font-medium">Filial</th>
+                <th className="px-4 py-3 font-medium">To'lov sanasi</th>
                 <th className="px-4 py-3 font-medium">Berilgan sana</th>
                 <th className="px-4 py-3 font-medium">Oxirgi kirish</th>
                 <th className="px-4 py-3 font-medium">Device ID</th>
@@ -287,11 +284,16 @@ export function OnlineDostup() {
             </thead>
             <tbody className="divide-y divide-border">
               {displayed.length === 0 ? (
-                <tr><td colSpan={6} className="px-4 py-16 text-center text-muted-foreground">Raqamlar topilmadi</td></tr>
+                <tr><td colSpan={11} className="px-4 py-16 text-center text-muted-foreground">Raqamlar topilmadi</td></tr>
               ) : displayed.map((p, i) => (
                 <tr key={p.id} className="hover:bg-secondary/40 transition">
                   <td className="px-4 py-3 text-muted-foreground">{i + 1}</td>
+                  <td className="px-4 py-3">{p.ism || "—"}</td>
                   <td className="px-4 py-3 font-medium">{p.telefon_raqami}</td>
+                  <td className="px-4 py-3">{p.summa != null ? formatSumma(String(p.summa)) : "—"}</td>
+                  <td className="px-4 py-3 text-muted-foreground">{p.turi || "—"}</td>
+                  <td className="px-4 py-3 text-muted-foreground">{p.filial || "—"}</td>
+                  <td className="px-4 py-3 text-muted-foreground">{p.sana || "—"}</td>
                   <td className="px-4 py-3 text-muted-foreground">{formatDate(p.created_at)}</td>
                   <td className="px-4 py-3">
                     {p.last_seen ? (

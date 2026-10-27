@@ -1,15 +1,16 @@
 import { useEffect, useState } from "react";
+import { SHEETS_API_KEY, SHEET_IDS } from "@/lib/sheets";
 import { Header } from "@/components/dashboard/Header";
 import {
   Loader2, AlertCircle, Plus, X,
   Search
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { callScript } from "@/lib/api";
 
-const SHEET_ID  = "1StqPMbH2IWX_722F9MVp92gKOGitlTuUBVYrtZ7GUvI";
-const API_KEY   = "AIzaSyB4kyYep05877BBpI9Rfv0SNcFhHVGBF5E";
+const SHEET_ID  = SHEET_IDS.baza;
+const API_KEY   = SHEETS_API_KEY;
 const RANGE     = "%D0%9B%D0%B8%D1%81%D1%821!A:R";
-const WEBHOOK   = "https://n8n.srv1215497.hstgr.cloud/webhook/admin";
 
 const DEFAULT_HODIMLAR = [
   "Rayhon","Ziyoda","Jamshid","Dilshod",
@@ -151,7 +152,6 @@ export function Baza() {
   const [addTolandi,   setAddTolandi]   = useState("");
   const [addQarzi,     setAddQarzi]     = useState("");
   const [addHodim,     setAddHodim]     = useState("Rayhon");
-  const [addOnline,    setAddOnline]    = useState("Offline");
 
   const [showHodimMgr, setShowHodimMgr] = useState(false);
   const [newHodimName, setNewHodimName] = useState("");
@@ -196,7 +196,7 @@ export function Baza() {
             nazariy:    r[12] ?? "",
             amaliyS:    r[13] ?? "",
             amaliy:     r[14] ?? "",
-            hodim:      r[17] ?? "",
+            hodim:      r[14] ?? "", // yangi jadvalda "Hodim" O ustunida
           }));
         setClients(parsed);
       })
@@ -226,30 +226,24 @@ export function Baza() {
     if (!addIsm || !addTelefon) { setAddResult("❌ Ism va telefonni kiriting"); return; }
     setAddLoading(true); setAddResult(null);
     try {
-      await fetch(WEBHOOK, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action:     "add",
-          ism:        addIsm,
-          telefon:    addTelefon,
-          filial:     addFilial,
-          dars_kuni:  toSheetDate(addDarsKuni),
-          tolov_kuni: toSheetDate(addTolovKuni),
-          dars_vaqti: addDarsVaqti,
-          tolov:      addTolov.replace(/\s/g, ""),
-          tolandi:    addTolandi.replace(/\s/g, ""),
-          qarzi:      addQarzi.replace(/\s/g, ""),
-          hodim:      addHodim,
-          online:     addOnline,
-        }),
+      await callScript("baza_add", {
+        ism:        addIsm,
+        telefon:    addTelefon,
+        filial:     addFilial,
+        dars_kuni:  toSheetDate(addDarsKuni),
+        tolov_kuni: toSheetDate(addTolovKuni),
+        dars_vaqti: addDarsVaqti,
+        tolov:      addTolov.replace(/\s/g, ""),
+        tolandi:    addTolandi.replace(/\s/g, ""),
+        qarzi:      addQarzi.replace(/\s/g, ""),
+        hodim:      addHodim,
       });
       setAddResult("✅ Muvaffaqiyatli saqlandi!");
       setAddIsm(""); setAddTelefon(""); setAddTolov("");
       setAddTolandi(""); setAddQarzi("");
       setAddDarsKuni(todayInput()); setAddTolovKuni(todayInput());
-      setTimeout(() => fetchData(), 2000);
-    } catch { setAddResult("❌ Xatolik yuz berdi"); }
+      fetchData();
+    } catch (e) { setAddResult(`❌ ${(e as Error).message}`); }
     finally { setAddLoading(false); }
   }
 
@@ -257,33 +251,28 @@ export function Baza() {
     if (!editClient) return;
     setEditLoading(true); setEditResult(null);
     try {
-      await fetch(WEBHOOK, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action:  "change",
-          ism:     editClient.ism,
-          telefon: editClient.telefon,
-          row:     editClient.rowIndex,
-          changes: {
-            ism:         { old: editClient.ism,        new: editIsm },
-            telefon:     { old: editClient.telefon,    new: editTelefon },
-            filial:      { old: editClient.filial,     new: editFilial },
-            dars_kuni:   { old: editClient.darsKuni,   new: toSheetDate(editDarsKuni) },
-            tolov_kuni:  { old: editClient.tolovKuni,  new: toSheetDate(editTolovKuni) },
-            dars_vaqti:  { old: editClient.darsVaqti,  new: editDarsVaqti },
-            tolov:       { old: editClient.tolov,      new: editTolov.replace(/\s/g,"") },
-            tolandi:     { old: editClient.tolandi,    new: editTolandi.replace(/\s/g,"") },
-            qarzi:       { old: editClient.qarzi,      new: editQarzi.replace(/\s/g,"") },
-            hodim:       { old: editClient.hodim,      new: editHodim },
-            tolov_bekor: { old: editClient.tolovBekor, new: editTolovBekor ? "Bekor" : "" },
-          },
-        }),
+      await callScript("baza_change", {
+        ism:     editClient.ism,
+        telefon: editClient.telefon,
+        row:     editClient.rowIndex,
+        changes: {
+          ism:         { old: editClient.ism,        new: editIsm },
+          telefon:     { old: editClient.telefon,    new: editTelefon },
+          filial:      { old: editClient.filial,     new: editFilial },
+          dars_kuni:   { old: editClient.darsKuni,   new: toSheetDate(editDarsKuni) },
+          tolov_kuni:  { old: editClient.tolovKuni,  new: toSheetDate(editTolovKuni) },
+          dars_vaqti:  { old: editClient.darsVaqti,  new: editDarsVaqti },
+          tolov:       { old: editClient.tolov,      new: editTolov.replace(/\s/g,"") },
+          tolandi:     { old: editClient.tolandi,    new: editTolandi.replace(/\s/g,"") },
+          qarzi:       { old: editClient.qarzi,      new: editQarzi.replace(/\s/g,"") },
+          hodim:       { old: editClient.hodim,      new: editHodim },
+          tolov_bekor: { old: editClient.tolovBekor, new: editTolovBekor ? "Bekor" : "" },
+        },
       });
       setEditResult("✅ Saqlandi!");
       setEditClient(null);
-      setTimeout(() => fetchData(), 2000);
-    } catch { setEditResult("❌ Xatolik yuz berdi"); }
+      fetchData();
+    } catch (e) { setEditResult(`❌ ${(e as Error).message}`); }
     finally { setEditLoading(false); }
   }
 
@@ -401,10 +390,6 @@ export function Baza() {
               <label className="text-xs text-muted-foreground mb-1 block">Qarzi (so'm)</label>
               <input type="text" value={addQarzi} onChange={e => setAddQarzi(formatSumma(e.target.value))}
                 className="w-full px-3 py-2 rounded-lg border border-border bg-background text-sm" />
-            </div>
-            <div>
-              <label className="text-xs text-muted-foreground mb-1 block">Online / Offline</label>
-              <Toggle left="Offline" right="Online" value={addOnline} onChange={setAddOnline} />
             </div>
             <div>
               <label className="text-xs text-muted-foreground mb-1 block flex items-center justify-between">

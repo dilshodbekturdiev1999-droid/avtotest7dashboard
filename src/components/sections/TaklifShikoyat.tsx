@@ -1,10 +1,11 @@
 import { useEffect, useState } from "react";
+import { SHEETS_API_KEY, SHEET_IDS } from "@/lib/sheets";
 import { Header } from "@/components/dashboard/Header";
 import { Loader2, AlertCircle, MessageSquare, ThumbsUp, ThumbsDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-const SHEET_ID = "1xnLEN8Rxx-jk1KDMSVO4qUagdvvGdn0678shPpfKjFM";
-const API_KEY  = "AIzaSyB4kyYep05877BBpI9Rfv0SNcFhHVGBF5E";
+const SHEET_ID = SHEET_IDS.taklif;
+const API_KEY  = SHEETS_API_KEY;
 
 type Period = "bugun" | "hafta" | "oy" | "barchasi";
 type Tab = "taklif" | "shikoyat";

@@ -2,8 +2,8 @@ import { useState } from "react";
 import { Header } from "@/components/dashboard/Header";
 import { Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { callScript } from "@/lib/api";
 
-const WEBHOOK = "https://n8n.srv1215497.hstgr.cloud/webhook/davomat";
 
 const VAQTLAR = ["10:00","13:00","15:00","19:00","21:00"];
 
@@ -56,22 +56,17 @@ export function OquvchiQoshish() {
     if (!addIsm || !addTel) { setAddResult("❌ Ism va telefonni kiriting"); return; }
     setAddLoading(true); setAddResult(null);
     try {
-      await fetch(WEBHOOK, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action:                 "add_student",
-          ism:                    addIsm,
-          telefon:                addTel,
-          filial:                 addFilial,
-          smena:                  addSmena,
-          dars_kuni:              toSheetDate(addDars),
-          dars_boshlanish_sanasi: toSheetDate(addDars),
-        }),
+      await callScript("davomat_add", {
+        ism:                    addIsm,
+        telefon:                addTel,
+        filial:                 addFilial,
+        smena:                  addSmena,
+        dars_kuni:              toSheetDate(addDars),
+        dars_boshlanish_sanasi: toSheetDate(addDars),
       });
       setAddResult("✅ Saqlandi!");
       setAddIsm(""); setAddTel(""); setAddDars(todayInput());
-    } catch { setAddResult("❌ Xatolik"); }
+    } catch (e) { setAddResult(`❌ ${(e as Error).message}`); }
     finally { setAddLoading(false); }
   }
 
