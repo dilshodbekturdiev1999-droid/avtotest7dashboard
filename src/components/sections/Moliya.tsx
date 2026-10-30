@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { SHEETS_API_KEY, SHEET_IDS } from "@/lib/sheets";
 import { Header } from "@/components/dashboard/Header";
-import { TrendingUp, Loader2, AlertCircle, Plus, X, CheckCircle2, Clock, CalendarClock, Globe, ChevronDown, ChevronUp, AlertTriangle, Info, Filter } from "lucide-react";
+import { TrendingUp, Loader2, AlertCircle, Plus, X, CheckCircle2, Clock, CalendarClock, Globe, Filter } from "lucide-react";
 import { Area, AreaChart, CartesianGrid, Cell, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { cn } from "@/lib/utils";
 import { callScript } from "@/lib/api";
@@ -347,8 +347,6 @@ export function Moliya() {
   const [filterFrom, setFilterFrom] = useState("");
   const [filterTo, setFilterTo] = useState("");
   const [tolovLoading, setTolovLoading] = useState<number | null>(null);
-  const [taqsimOpen, setTaqsimOpen] = useState(false);
-  const [tahlilOpen, setTahlilOpen] = useState(false);
   const [payments, setPayments] = useState<Payment[]>([]);
   const [paymentsLoading, setPaymentsLoading] = useState(false);
   const [modalPravaOn, setModalPravaOn] = useState(false);
@@ -574,10 +572,6 @@ export function Moliya() {
   const pravaOnRevenue = pravaOnAllTimeIncome - pravaOnAllTimeExpenses;
   const pravaOnCount   = payments.length;
 
-  const taqsim = taqsimla(rows.filter(function(r) { return !isOnlineRow(r) && !isTerminalRow(r); }), now);
-  const yetarliSon = taqsim.items.filter(function(i) { return i.tolanganReal || i.foiz >= 100; }).length;
-  const xatarliSon = taqsim.items.filter(function(i) { return !i.tolanganReal && i.foiz < 100 && i.hasDate && (i.kunQoldi <= 3 || i.kechikkan); }).length;
-
   const tableFiltered = periodFiltered.filter(function(r) {
     if (filterKirim === "Kirim" && r.summa < 0) return false;
     if (filterKirim === "Chiqim" && r.summa > 0) return false;
@@ -725,126 +719,6 @@ export function Moliya() {
             {paymentsLoading ? "Yuklanmoqda…" : pravaOnCount + " ta to'lov · Batafsil ko'rish"}
           </p>
         </div>
-      </div>
-
-      <div className="bg-card rounded-2xl border border-border shadow-soft mb-6 overflow-hidden">
-        <div onClick={function() { setTaqsimOpen(function(v) { return !v; }); }} className="w-full flex items-center justify-between px-5 py-4 hover:bg-secondary/40 transition cursor-pointer">
-          <div className="flex items-center gap-3 flex-wrap">
-            <div className="flex items-center gap-2">
-              <span className="font-semibold text-sm">Pul taqsimoti</span>
-              <span onClick={function(e) { e.stopPropagation(); setTahlilOpen(function(v) { return !v; }); setTaqsimOpen(true); }} className="h-5 w-5 rounded-full bg-muted flex items-center justify-center hover:bg-primary hover:text-primary-foreground transition cursor-pointer">
-                <Info className="h-3 w-3" />
-              </span>
-            </div>
-            <div className="flex items-center gap-1.5 flex-wrap">
-              {xatarliSon > 0 && (
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-red-100 text-red-700 text-xs font-medium">
-                  <AlertTriangle className="h-3 w-3" />{xatarliSon} xatar
-                </span>
-              )}
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 text-xs font-medium">
-                <CheckCircle2 className="h-3 w-3" />{yetarliSon}/{taqsim.items.length} yopildi
-              </span>
-              <span className="text-xs text-muted-foreground">· ~{fmt(taqsim.kunlikKirim)}/kun</span>
-            </div>
-          </div>
-          {taqsimOpen ? <ChevronUp className="h-4 w-4 text-muted-foreground shrink-0" /> : <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0" />}
-        </div>
-
-        {taqsimOpen && tahlilOpen && (
-          <div className="mx-5 mb-3 p-4 rounded-xl border border-blue-200 bg-blue-50 text-xs text-blue-900">
-            <p className="font-semibold mb-2">Nima asosida taqsimlanyapti?</p>
-            <p className="mb-2">Kassaning 14% sanasiz xarajatlarga teng taqsimlanadi. 86% sanali xarajatlarga kaskad usulida.</p>
-            <p className="mb-1">🟢 To'q yashil = haqiqatda to'langan · 🟩 Och yashil = kassadan zaxiralangan</p>
-            <p className="text-blue-700">🔴 Kechikmoqda = sana o'tib ketgan, hali to'lanmagan</p>
-          </div>
-        )}
-
-        {taqsimOpen && (
-          <div className="px-5 pb-5">
-            <div className="space-y-2">
-              {taqsim.items.map(function(v) {
-                const isGreen = v.tolanganReal || v.foiz >= 100;
-                const isXatar = !v.tolanganReal && v.foiz < 100 && v.hasDate && (v.kunQoldi <= 3 || v.kechikkan);
-                const bgClass = isGreen
-                  ? "border-emerald-200 bg-emerald-50"
-                  : isXatar
-                    ? "border-red-200 bg-red-50"
-                    : "border-border bg-background";
-
-                return (
-                  <div key={v.id} className={cn("p-3 rounded-xl border", bgClass)}>
-                    <div className="flex items-center justify-between mb-1.5">
-                      <div className="flex items-center gap-2 min-w-0">
-                        {isGreen
-                          ? <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500 shrink-0" />
-                          : <Clock className={cn("h-3.5 w-3.5 shrink-0", isXatar ? "text-red-500" : "text-muted-foreground")} />}
-                        <span className={cn(
-                          "font-medium text-sm truncate",
-                          v.tolanganReal ? "line-through text-emerald-600" :
-                          isGreen ? "text-emerald-700" : ""
-                        )}>{v.nomi}</span>
-                        {v.tolanganReal && <span className="text-xs text-emerald-600 font-semibold shrink-0 ml-1">To'landi</span>}
-                        {!v.tolanganReal && isGreen && <span className="text-xs text-emerald-600 font-semibold shrink-0 ml-1">Kassada bor</span>}
-                        {v.kechikkan && !v.tolanganReal && (
-                          <span className="text-xs text-red-600 font-semibold shrink-0 ml-1 inline-flex items-center gap-0.5">
-                            <AlertTriangle className="h-3 w-3" />Kechikmoqda
-                          </span>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-2 shrink-0 ml-2">
-                        <span className="text-xs text-muted-foreground whitespace-nowrap">
-                          {v.hasDate ? (v.targetKun === 31 ? "Oy oxiri" : v.targetKun + "-kun") : "Oy davomida"}
-                          {v.hasDate && !v.kechikkan && " · " + v.kunQoldi + " kun qoldi"}
-                          {v.hasDate && v.kechikkan && !v.tolanganReal && " · to'lanmagan"}
-                        </span>
-                      </div>
-                    </div>
-
-                    <div className="h-2 rounded-full bg-secondary overflow-hidden mb-1">
-                      <div className="h-full flex">
-                        {v.foizReal > 0 && (
-                          <div className="h-full bg-emerald-600 transition-all" style={{ width: v.foizReal + "%" }} />
-                        )}
-                        {v.foizKassa > 0 && (
-                          <div className="h-full bg-emerald-300 transition-all" style={{ width: v.foizKassa + "%" }} />
-                        )}
-                      </div>
-                    </div>
-
-                    <div className="flex items-center justify-between text-xs">
-                      <span className="num text-muted-foreground flex items-center gap-2">
-                        {v.tolanganSumma > 0 && (
-                          <span className="inline-flex items-center gap-1">
-                            <span className="inline-block h-2 w-2 rounded-sm bg-emerald-600" />
-                            {fmtFull(v.tolanganSumma)}
-                          </span>
-                        )}
-                        {v.toplangan > 0 && !v.tolanganReal && (
-                          <span className="inline-flex items-center gap-1">
-                            <span className="inline-block h-2 w-2 rounded-sm bg-emerald-300" />
-                            {fmtFull(v.toplangan)}
-                          </span>
-                        )}
-                        <span className="text-muted-foreground">/ {fmtFull(v.kerak)} so'm</span>
-                      </span>
-                      <span className={cn("font-semibold",
-                        isGreen ? "text-emerald-600" :
-                        isXatar ? "text-red-500" :
-                        "text-muted-foreground")}>
-                        {v.foiz}%{!isGreen ? " · " + fmtFull(v.kerak - v.tolanganSumma - v.toplangan) + " kerak" : " ✓"}
-                      </span>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-            <div className="flex items-center justify-between pt-3 mt-2 border-t border-border">
-              <span className="text-xs text-muted-foreground">Kassada qolgan pul (sof foyda)</span>
-              <span className={cn("num font-bold text-sm", taqsim.qolgan > 0 ? "text-emerald-600" : "text-muted-foreground")}>{fmt(taqsim.qolgan)}</span>
-            </div>
-          </div>
-        )}
       </div>
 
       <div className="bg-card rounded-2xl border border-border p-5 shadow-soft mb-6">
