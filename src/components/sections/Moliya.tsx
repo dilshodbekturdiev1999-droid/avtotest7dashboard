@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { SHEETS_API_KEY, SHEET_IDS } from "@/lib/sheets";
+import { SHEETS_API_KEY, SHEET_IDS, normalizeSana } from "@/lib/sheets";
 import { Header } from "@/components/dashboard/Header";
 import { TrendingUp, Loader2, AlertCircle, Plus, X, CheckCircle2, Clock, CalendarClock, Globe, Filter } from "lucide-react";
 import { Area, AreaChart, CartesianGrid, Cell, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
@@ -376,8 +376,8 @@ export function Moliya() {
         const dataRows = allRows.slice(1);
         setRows(dataRows.filter(function(r) { return r.length >= 6 && r[0] && r[5] && !/yunus/i.test(r[2] || "") && !/yunus/i.test(r[8] || ""); }).map(function(r) {
           return {
-            sana: r[0] || "", ism: r[1] || "", filial: r[2] || "", onlineOfline: r[3] || "",
-            turi: r[4] || "", summa: parseSumma(r[5]), kirimChiqim: r[6] || "", izoh: r[7] || "",
+            sana: normalizeSana(r[0] || ""), ism: r[1] || "", filial: (r[2] || "").trim(), onlineOfline: (r[3] || "").trim(),
+            turi: (r[4] || "").trim(), summa: parseSumma(r[5]), kirimChiqim: r[6] || "", izoh: r[7] || "",
             chiqimTuri: r[8] || "",
           };
         }));
@@ -684,7 +684,7 @@ export function Moliya() {
         <div className="flex items-center justify-between">
           <div>
             <p className={cn("text-sm font-medium mb-1", totalProfit < 0 ? "text-red-700" : "text-purple-700")}>Marja</p>
-            <p className={cn("text-3xl font-bold num", totalProfit < 0 ? "text-red-600" : "text-purple-900")}>{totalProfit < 0 ? "-" : ""}{margin}%</p>
+            <p className={cn("text-3xl font-bold num", totalProfit < 0 ? "text-red-600" : "text-purple-900")}>{margin}%</p>
             <p className={cn("text-xs mt-1", totalProfit < 0 ? "text-red-600" : "text-purple-600")}>
               Daromad: {fmt(totalRevenue)} · Xarajat: {fmt(totalExpenses)} · Sof foyda:{" "}
               <span className={cn("font-semibold", totalProfit < 0 ? "text-red-600" : "")}>{totalProfit < 0 ? "-" : ""}{fmt(totalProfit)}</span>
@@ -710,13 +710,13 @@ export function Moliya() {
         <div className={cn("sm:col-span-3 rounded-2xl p-5 shadow-soft border cursor-pointer transition", terminalProfit < 0 ? "border-red-200 bg-gradient-to-br from-red-50 to-white hover:border-red-300" : "border-amber-200 bg-gradient-to-br from-amber-50 to-white hover:border-amber-300")} onClick={function() { setModalTerminal(true); }}>
           <p className={cn("text-sm font-medium mb-2", terminalProfit < 0 ? "text-red-700" : "text-amber-700")}>Terminal — Sof foyda</p>
           <p className={cn("text-2xl font-bold num", terminalProfit < 0 ? "text-red-600" : "text-amber-900")}>{terminalProfit < 0 ? "-" : ""}{fmt(terminalProfit)}</p>
-          <p className={cn("text-xs mt-2", terminalProfit < 0 ? "text-red-500" : "text-amber-600")}>{terminalKirimRows.length + terminalChiqimItems.length} ta operatsiya · Batafsil ko'rish</p>
+          <p className={cn("text-xs mt-2", terminalProfit < 0 ? "text-red-500" : "text-amber-600")}>Barcha vaqt · {terminalKirimRows.length + terminalChiqimItems.length} ta operatsiya · Batafsil ko'rish</p>
         </div>
         <div className="sm:col-span-3 rounded-2xl p-5 shadow-soft border border-violet-200 bg-gradient-to-br from-violet-50 to-white hover:border-violet-300 cursor-pointer transition" onClick={function() { setModalPravaOn(true); }}>
           <p className="text-sm font-medium mb-2 text-violet-700">Prava-On — Daromad</p>
           <p className="text-2xl font-bold num text-violet-900">{fmt(pravaOnRevenue)}</p>
           <p className="text-xs mt-2 text-violet-600">
-            {paymentsLoading ? "Yuklanmoqda…" : pravaOnCount + " ta to'lov · Batafsil ko'rish"}
+            {paymentsLoading ? "Yuklanmoqda…" : "Barcha vaqt · " + pravaOnCount + " ta to'lov · Batafsil ko'rish"}
           </p>
         </div>
       </div>

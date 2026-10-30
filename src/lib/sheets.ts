@@ -9,6 +9,11 @@ export const SHEET_IDS = {
   taklif:   "1iKOF_H3yHOxeu9mYVtadGYX4Ei_2fYLKQaBC_DZWZDE", // Taklifl va Shikoyalar anonim
 };
 
+// Jadvaldagi sanani yagona ko'rinishga keltiradi, yozuvdagi xato hisobni buzmasligi uchun: "19.10,2026", "19/10/2026" -> "19.10.2026"
+export function normalizeSana(raw: string): string {
+  return raw.trim().replace(/[,/\-\s]+/g, ".");
+}
+
 // Google Apps Script web ilovasi: jadvallarga yozish shu orqali (apps-script/Code.gs).
 export const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzA1zqWaH2Jn_wkn2kfErogiIYxanoJT1UrkwzXDEffR9IFGT_ezR24cj29hIVMX5rzZw/exec";
 export const SCRIPT_TOKEN = "a6fc188b45bf0d5333d3086801643578139c";

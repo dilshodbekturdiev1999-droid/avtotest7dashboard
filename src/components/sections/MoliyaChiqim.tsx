@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { SHEETS_API_KEY, SHEET_IDS } from "@/lib/sheets";
+import { SHEETS_API_KEY, SHEET_IDS, normalizeSana } from "@/lib/sheets";
 import { Header } from "@/components/dashboard/Header";
 import { Loader2, AlertCircle, ChevronDown, ChevronUp } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -294,8 +294,8 @@ export function MoliyaChiqim() {
         const parsed: Row[] = all.slice(1)
           .filter(r => r[0] && r[5] && !/yunus/i.test(r[2] ?? "") && !/yunus/i.test(r[8] ?? ""))
           .map(r => ({
-            sana:         r[0] ?? "",
-            filial:       r[2] ?? "",
+            sana:         normalizeSana(r[0] ?? ""),
+            filial:       (r[2] ?? "").trim(),
             summa:        parseSumma(r[5] ?? ""),
             kirimChiqim:  (r[6] ?? "").trim(),
             chiqimTuri:   (r[8] ?? "").trim() || "Boshqa",
@@ -344,8 +344,8 @@ export function MoliyaChiqim() {
   }
   const isTerminalRow = (r: Row) => r.turi.toLowerCase() === "terminal";
   const filtered = isChiqim
-    ? baseFiltered.filter(r => r.kirimChiqim.toLowerCase().includes("chiq") && r.summa < 0 && !isPravaOnRow(r) && !isTerminalRow(r))
-    : baseFiltered.filter(r => r.kirimChiqim.toLowerCase().includes("kirim") && r.summa > 0 && !isPravaOnRow(r) && !isTerminalRow(r));
+    ? baseFiltered.filter(r => r.summa < 0 && !isPravaOnRow(r) && !isTerminalRow(r))
+    : baseFiltered.filter(r => r.summa > 0 && !isPravaOnRow(r) && !isTerminalRow(r));
 
   return (
     <div>
