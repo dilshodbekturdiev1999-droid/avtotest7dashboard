@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Header } from "@/components/dashboard/Header";
 import { Loader2, AlertCircle, Plus, X, Search, Trash2, Pencil } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { SUPABASE_URL, SUPABASE_KEY, allowPhone, changePhone } from "@/lib/supabase";
+import { sb, allowPhone, changePhone } from "@/lib/supabase";
 
 // "2026-10-28" -> "28.10.2026"
 function toSheetDate(input: string): string {
@@ -95,13 +95,7 @@ export function OnlineDostup() {
 
   const fetchPhones = () => {
     setLoading(true);
-    fetch(`${SUPABASE_URL}/rest/v1/allowed_phones?select=*&order=created_at.desc`, {
-      headers: {
-        "apikey": SUPABASE_KEY,
-        "Authorization": `Bearer ${SUPABASE_KEY}`,
-      },
-    })
-      .then(r => { if (!r.ok) throw new Error(`Xatolik: ${r.status}`); return r.json(); })
+    sb("allowed_phones?select=*&order=created_at.desc")
       .then(data => setPhones(data))
       .catch(e => setError(e.message))
       .finally(() => setLoading(false));
@@ -142,15 +136,9 @@ export function OnlineDostup() {
   async function submitDelete(id: number) {
     setDeleteId(id); setDeleteLoading(true);
     try {
-      await fetch(`${SUPABASE_URL}/rest/v1/allowed_phones?id=eq.${id}`, {
-        method: "DELETE",
-        headers: {
-          "apikey": SUPABASE_KEY,
-          "Authorization": `Bearer ${SUPABASE_KEY}`,
-        },
-      });
+      await sb(`allowed_phones?id=eq.${id}`, { method: "DELETE" });
       fetchPhones();
-    } catch {}
+    } catch (e) { alert(`O'chirilmadi: ${(e as Error).message}`); }
     finally { setDeleteLoading(false); setDeleteId(null); }
   }
 

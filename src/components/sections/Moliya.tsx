@@ -5,7 +5,7 @@ import { TrendingUp, Loader2, AlertCircle, Plus, X, CheckCircle2, Clock, Calenda
 import { Area, AreaChart, CartesianGrid, Cell, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { cn } from "@/lib/utils";
 import { callScript } from "@/lib/api";
-import { SUPABASE_URL, SUPABASE_KEY } from "@/lib/supabase";
+import { sb } from "@/lib/supabase";
 
 const SHEET_ID = SHEET_IDS.moliya;
 const SHEET_NAME = "moliya";
@@ -411,10 +411,7 @@ export function Moliya() {
 
   const fetchPayments = () => {
     setPaymentsLoading(true);
-    fetch(`${SUPABASE_URL}/rest/v1/payments?status=eq.success&order=updated_at.desc`, {
-      headers: { "apikey": SUPABASE_KEY, "Authorization": `Bearer ${SUPABASE_KEY}` },
-    })
-    .then(function(r) { return r.json(); })
+    sb("payments?status=eq.success&order=updated_at.desc")
     .then(function(data) { setPayments(Array.isArray(data) ? data : []); })
     .catch(function() {})
     .finally(function() { setPaymentsLoading(false); });
@@ -422,10 +419,7 @@ export function Moliya() {
 
   const fetchPravaOnExpenses = () => {
     setExpLoading(true);
-    fetch(`${SUPABASE_URL}/rest/v1/prava_on_expenses?order=created_at.desc`, {
-      headers: { "apikey": SUPABASE_KEY, "Authorization": `Bearer ${SUPABASE_KEY}` },
-    })
-    .then(function(r) { return r.json(); })
+    sb("prava_on_expenses?order=created_at.desc")
     .then(function(data) { setPravaOnExpenses(Array.isArray(data) ? data.filter(function(e) { return !/yunus/i.test(e.filial || ""); }) : []); })
     .catch(function() {})
     .finally(function() { setExpLoading(false); });
@@ -436,12 +430,7 @@ export function Moliya() {
     if (!summaNum || isNaN(summaNum)) { setExpResult("Summani kiriting"); return; }
     setExpSaving(true); setExpResult(null);
     try {
-      const res = await fetch(`${SUPABASE_URL}/rest/v1/prava_on_expenses`, {
-        method: "POST",
-        headers: { "apikey": SUPABASE_KEY, "Authorization": `Bearer ${SUPABASE_KEY}`, "Content-Type": "application/json", "Prefer": "return=representation" },
-        body: JSON.stringify({ summa: summaNum, filial: expFilial, izoh: expIzoh || null, created_at: expSana }),
-      });
-      if (!res.ok) throw new Error();
+      await sb("prava_on_expenses", { method: "POST", body: { summa: summaNum, filial: expFilial, izoh: expIzoh || null, created_at: expSana } });
       setExpResult("Saqlandi!");
       setExpSumma(""); setExpIzoh(""); setExpSana(todayInputFormat());
       fetchPravaOnExpenses();
@@ -452,10 +441,7 @@ export function Moliya() {
 
   const fetchTerminalExpenses = () => {
     setTermExpLoading(true);
-    fetch(`${SUPABASE_URL}/rest/v1/terminal_expenses?order=created_at.desc`, {
-      headers: { "apikey": SUPABASE_KEY, "Authorization": `Bearer ${SUPABASE_KEY}` },
-    })
-    .then(function(r) { return r.json(); })
+    sb("terminal_expenses?order=created_at.desc")
     .then(function(data) { setTermExpenseList(Array.isArray(data) ? data.filter(function(e) { return !/yunus/i.test(e.filial || ""); }) : []); })
     .catch(function() {})
     .finally(function() { setTermExpLoading(false); });
@@ -466,12 +452,7 @@ export function Moliya() {
     if (!summaNum || isNaN(summaNum)) { setTermExpResult("Summani kiriting"); return; }
     setTermExpSaving(true); setTermExpResult(null);
     try {
-      const res = await fetch(`${SUPABASE_URL}/rest/v1/terminal_expenses`, {
-        method: "POST",
-        headers: { "apikey": SUPABASE_KEY, "Authorization": `Bearer ${SUPABASE_KEY}`, "Content-Type": "application/json", "Prefer": "return=representation" },
-        body: JSON.stringify({ summa: summaNum, filial: termExpFilial, izoh: termExpIzoh || null, created_at: termExpSana }),
-      });
-      if (!res.ok) throw new Error();
+      await sb("terminal_expenses", { method: "POST", body: { summa: summaNum, filial: termExpFilial, izoh: termExpIzoh || null, created_at: termExpSana } });
       setTermExpResult("Saqlandi!");
       setTermExpSumma(""); setTermExpIzoh(""); setTermExpSana(todayInputFormat());
       fetchTerminalExpenses();

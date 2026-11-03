@@ -1,17 +1,22 @@
 // Supabase (asosiy loyiha: payments, allowed_phones, prava_on_expenses, terminal_expenses).
+// Sayt Supabase ga to'g'ridan-to'g'ri emas, serverdagi "dashboard" funksiyasi orqali murojaat qiladi
+// (supabase/functions/dashboard): service_role kaliti saytga tushmaydi, funksiya faqat shu 4 jadvalga ruxsat beradi.
 // Boshqa akkauntga o'tganda faqat shu ikki qiymat almashtiriladi.
-export const SUPABASE_URL = "https://ziqzprosgzevkdfwyotl.supabase.co";
-export const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InppcXpwcm9zZ3pldmtkZnd5b3RsIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2NjM0MDAzMCwiZXhwIjoyMDgxOTE2MDMwfQ.vv56u5cQ0VToYDhyYGpbt2phr7PAwAbmtheY2h25yyQ";
+export const SB_FUNCTION_URL = "https://vywzulllyxlhynxgmpqc.supabase.co/functions/v1/dashboard";
+export const SB_FUNCTION_TOKEN = "5d04aab453640ac3e57544cf36fc033fcc04698cb580761d";
 
-export const sbHeaders = {
-  apikey: SUPABASE_KEY,
-  Authorization: `Bearer ${SUPABASE_KEY}`,
-  "Content-Type": "application/json",
-};
-
-async function sbCall(path: string, init: RequestInit): Promise<void> {
-  const res = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, { ...init, headers: { ...sbHeaders, ...init.headers } });
+// PostgREST so'rovi: sb("payments?status=eq.success"), sb("allowed_phones", { method: "POST", body: {...} })
+// "text/plain" CORS preflight chiqmasligi uchun. HTTP xato bo'lsa xato tashlaydi.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export async function sb(path: string, opts: { method?: string; body?: unknown } = {}): Promise<any> {
+  const res = await fetch(SB_FUNCTION_URL, {
+    method: "POST",
+    headers: { "Content-Type": "text/plain;charset=utf-8" },
+    body: JSON.stringify({ token: SB_FUNCTION_TOKEN, method: opts.method ?? "GET", path, body: opts.body }),
+  });
+  const text = await res.text();
   if (!res.ok) throw new Error(`Supabase xatosi: ${res.status}`);
+  return text ? JSON.parse(text) : null;
 }
 
 // Bazadagi telefonlar 9 xonali (998 siz) saqlanadi
@@ -32,13 +37,11 @@ export interface AccessDetails {
 // Raqam allaqachon bor bo'lsa, yangi qator qo'shilmaydi: ma'lumotlari yangilanadi.
 export async function allowPhone(telefon: string, details: AccessDetails = {}): Promise<void> {
   const tel = digits(telefon);
-  const res = await fetch(`${SUPABASE_URL}/rest/v1/allowed_phones?select=id&telefon_raqami=eq.${encodeURIComponent(tel)}`, { headers: sbHeaders });
-  if (!res.ok) throw new Error(`Supabase xatosi: ${res.status}`);
-  const existing: { id: number }[] = await res.json();
-  if (existing.length) return sbCall(`allowed_phones?id=eq.${existing[0].id}`, { method: "PATCH", body: JSON.stringify(details) });
-  await sbCall("allowed_phones", { method: "POST", body: JSON.stringify({ telefon_raqami: tel, ...details }) });
+  const existing: { id: number }[] = await sb(`allowed_phones?select=id&telefon_raqami=eq.${encodeURIComponent(tel)}`);
+  if (existing.length) { await sb(`allowed_phones?id=eq.${existing[0].id}`, { method: "PATCH", body: details }); return; }
+  await sb("allowed_phones", { method: "POST", body: { telefon_raqami: tel, ...details } });
 }
 
-export function changePhone(id: number, telefon: string): Promise<void> {
-  return sbCall(`allowed_phones?id=eq.${id}`, { method: "PATCH", body: JSON.stringify({ telefon_raqami: digits(telefon) }) });
+export async function changePhone(id: number, telefon: string): Promise<void> {
+  await sb(`allowed_phones?id=eq.${id}`, { method: "PATCH", body: { telefon_raqami: digits(telefon) } });
 }
